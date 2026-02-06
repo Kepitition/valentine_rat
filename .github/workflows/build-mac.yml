@@ -1,0 +1,29 @@
+name: Build macOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build macOS binary
+        run: |
+          pyinstaller --noconsole --onefile --hidden-import="PIL" \
+            --add-data "rat.gif:." --add-data "song.mp3:." \
+            valentine_rat.py
+
+      - name: Upload macOS build
+        uses: actions/upload-artifact@v4
+        with:
+          name: valentine_rat-macos
+          path: dist/valentine_rat
