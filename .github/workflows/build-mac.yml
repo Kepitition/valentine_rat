@@ -20,6 +20,7 @@ jobs:
         run: |
           pyinstaller --noconsole --onefile --hidden-import="PIL" \
             --add-data "rat.gif:." --add-data "song.mp3:." \
+            --add-data "rose.gif:." --add-data "joke_song.mp3:." \
             valentine_rat.py
 
       - name: Upload macOS build

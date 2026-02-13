@@ -2,6 +2,7 @@ import pygame
 import sys
 import os
 import random
+import math
 from PIL import Image
 
 # --- CONFIGURATION ---
@@ -10,6 +11,8 @@ SCREEN_HEIGHT = 720
 NUM_RATS = 80
 SPIN_SPEED_MULTIPLIER = 1.0
 BACKGROUND_COLOR = (20, 20, 20)
+PARTY_TRIGGER_TIME = 64.0
+PARTY_FADEOUT_MS = 2000
 
 TIMELINE = {
     6.0: "Fareler yeterli sayida dondugune gore\n artik mesaj kismina baslayabilirim sanirim?",
@@ -18,21 +21,21 @@ TIMELINE = {
     14.0: "Ama sen surekli hediyeyle ilgili sorular sorduktan sonra eklemek istedim",
     16.0: "Biz tartismadan once bunu yapma karari almistim",
     18.0: "Her ne kadar basta inanmasan da burada not olarak kalsin istedim",
-    20.0: "Ipucu verme konusunda da tereddutte kaldim cunku surprizi bozulsun istemedim.",
+    20.0: "Ipucu verme konusunda da tereddutte kaldim \n cunku surprizi bozulsun istemedim.",
     22.0: "Neyse kucuk update bitti 3-4 saniye de bos dinle bakalim bari",
     26.0: "Hatirliyor musun bunu bu meme populerken yapmak istiyordum",
     28.0: "Cok delayli olsa da sana ulastirmak istedim",
-    30.0: "",
-    32.0: "TEST",
-    34.0: "TEST",
-    36.0: "TEST",
-    38.0: "TEST",
-    40.0: "OEST",
-    42.0: "YEST",
-    44.0: "KEST",
-    46.0: "UEST",
-    48.0: "TEST",
-    50.0: "TEST",
+    30.0: "Aslinda paylasmak, soylemek istedigim cok sey oluyor",
+    32.0: "Bazen mesafeden dolayi\n bazense birbirimizi yanlis anlasak da",
+    34.0: "Gercekten seni kirmak en son istedigim sey",
+    36.0: "Cunku seni kaybetmekten endise duyuyorum",
+    38.0: "Bu oyunu, videoyu hazirlarken fark ettim",
+    40.0: "Seninle / senin icin ugrasmayi ozlemisim",
+    42.0: "Suanda yaninda olup birlikte izlemek de keyifli olurdu",
+    44.0: "Maalesef yapamiyoruz tabii ki suan",
+    46.0: "Her sey mukemmel gitmek zorunda degil",
+    48.0: "Gelecegi dusunup dertlenmek yerine",
+    50.0: "Su anin tadini cikaralim istiyorum",
     52.0: "Bir sene sonra okullarin aciklandiktan sonra ne yapacagimizi ben de bilmiyorum",
     54.0: "Keza Mart Nisanda orada oldugumda ne olacagimizi da bilmiyorum",
     56.0: "Fakat en azindan bu 1 senelik surecte",
@@ -89,6 +92,77 @@ def draw_multiline_text(surface, text, font, center_x, center_y,
         surface.blit(txt_surf, (x, y))
 
 
+# --- CONFETTI CLASS ---
+class Confetti:
+    def __init__(self):
+        self.reset()
+        self.y = random.randint(-SCREEN_HEIGHT, 0)
+
+    def reset(self):
+        self.x = random.randint(0, SCREEN_WIDTH)
+        self.y = random.randint(-50, -10)
+        self.size = random.randint(4, 10)
+        self.speed = random.uniform(100, 300)
+        self.drift = random.uniform(-30, 30)
+        self.color = random.choice([
+            (255, 0, 100), (255, 50, 200), (255, 200, 0),
+            (0, 255, 150), (100, 200, 255), (255, 100, 50),
+            (200, 50, 255), (255, 255, 100), (255, 255, 255),
+        ])
+        self.rotation = random.uniform(0, 360)
+        self.rot_speed = random.uniform(-200, 200)
+
+    def update(self, dt):
+        self.y += self.speed * dt
+        self.x += self.drift * dt
+        self.rotation += self.rot_speed * dt
+        if self.y > SCREEN_HEIGHT + 20:
+            self.reset()
+
+    def draw(self, surface):
+        w = self.size
+        h = self.size * 0.6
+        angle_rad = math.radians(self.rotation)
+        cos_a = math.cos(angle_rad)
+        apparent_w = max(2, int(abs(w * cos_a)))
+        rect = pygame.Rect(0, 0, apparent_w, int(h))
+        rect.center = (int(self.x), int(self.y))
+        pygame.draw.rect(surface, self.color, rect)
+
+
+# --- BOUNCING ROSE CLASS ---
+class BouncingRose:
+    def __init__(self, frames):
+        self.frames = frames
+        self.x = float(SCREEN_WIDTH // 2)
+        self.y = float(SCREEN_HEIGHT // 2)
+        angle = random.uniform(0.5, 1.2)
+        speed = 250
+        self.vx = speed * math.cos(angle)
+        self.vy = speed * math.sin(angle)
+        self.frame_index = 0.0
+        self.anim_speed = 1.0
+
+    def update(self, dt):
+        self.x += self.vx * dt
+        self.y += self.vy * dt
+        half_w = self.frames[0].get_width() // 2
+        half_h = self.frames[0].get_height() // 2
+        if self.x - half_w <= 0 or self.x + half_w >= SCREEN_WIDTH:
+            self.vx *= -1
+            self.x = max(half_w, min(SCREEN_WIDTH - half_w, self.x))
+        if self.y - half_h <= 0 or self.y + half_h >= SCREEN_HEIGHT:
+            self.vy *= -1
+            self.y = max(half_h, min(SCREEN_HEIGHT - half_h, self.y))
+        self.frame_index += self.anim_speed
+
+    def draw(self, surface):
+        idx = int(self.frame_index) % len(self.frames)
+        img = self.frames[idx]
+        rect = img.get_rect(center=(int(self.x), int(self.y)))
+        surface.blit(img, rect)
+
+
 # --- SETUP ---
 pygame.init()
 pygame.mixer.init()
@@ -102,6 +176,9 @@ try:
     rat_frames = load_gif_frames(gif_path, target_size=(150, 150))
     song_path = resource_path("song.mp3")
     pygame.mixer.music.load(song_path)
+    rose_path = resource_path("rose.gif")
+    rose_frames = load_gif_frames(rose_path, target_size=(220, 220))
+    joke_song_path = resource_path("joke_song.mp3")
 except Exception as e:
     print(f"Error loading assets: {e}")
     sys.exit()
@@ -130,6 +207,14 @@ rats = [Rat() for _ in range(NUM_RATS)]
 running = True
 music_is_playing = False
 hold_time = 0.0
+party_mode = False
+party_fade_started = False
+party_song_started = False
+disco_timer = 0.0
+disco_color = BACKGROUND_COLOR
+
+confetti_particles = [Confetti() for _ in range(120)]
+bouncing_roses = [BouncingRose(rose_frames) for _ in range(15)]
 
 font_large = pygame.font.SysFont("Arial", 40, bold=True)
 font_small = pygame.font.SysFont("Arial", 20)
@@ -144,7 +229,6 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-    screen.fill(BACKGROUND_COLOR)
     keys = pygame.key.get_pressed()
 
     # RESET
@@ -153,17 +237,50 @@ while running:
 
     is_holding_space = keys[pygame.K_SPACE]
 
-    # MUSIC CONTROL
-    if is_holding_space and not music_is_playing:
-        pygame.mixer.music.unpause()
-        music_is_playing = True
-    elif not is_holding_space and music_is_playing:
-        pygame.mixer.music.pause()
-        music_is_playing = False
+    # MUSIC CONTROL (skip pause/unpause once party mode is handling music)
+    if not party_fade_started:
+        if is_holding_space and not music_is_playing:
+            pygame.mixer.music.unpause()
+            music_is_playing = True
+        elif not is_holding_space and music_is_playing:
+            pygame.mixer.music.pause()
+            music_is_playing = False
+    elif party_mode:
+        if is_holding_space and not music_is_playing:
+            pygame.mixer.music.unpause()
+            music_is_playing = True
+        elif not is_holding_space and music_is_playing:
+            pygame.mixer.music.pause()
+            music_is_playing = False
 
     # TIMER
     if is_holding_space:
         hold_time += dt
+
+    # PARTY MODE TRIGGER
+    if hold_time >= PARTY_TRIGGER_TIME and not party_fade_started:
+        party_fade_started = True
+        pygame.mixer.music.fadeout(PARTY_FADEOUT_MS)
+
+    if party_fade_started and not party_song_started and not pygame.mixer.music.get_busy():
+        party_song_started = True
+        party_mode = True
+        pygame.mixer.music.load(joke_song_path)
+        pygame.mixer.music.play(loops=-1)
+
+    # DISCO BACKGROUND
+    if party_mode and is_holding_space:
+        disco_timer += dt
+        if disco_timer > 0.1:
+            disco_timer = 0.0
+            disco_color = (
+                random.randint(100, 255),
+                random.randint(50, 255),
+                random.randint(100, 255),
+            )
+        screen.fill(disco_color)
+    else:
+        screen.fill(BACKGROUND_COLOR)
 
     # DRAW RATS
     if hold_time > 0.1:
@@ -201,6 +318,15 @@ while running:
         if not is_holding_space:
             pause_msg = font_small.render("(Paused - Hold SPACE to continue)", True, (200, 200, 200))
             screen.blit(pause_msg, (SCREEN_WIDTH // 2 - pause_msg.get_width() // 2, SCREEN_HEIGHT - 50))
+
+    # PARTY MODE EFFECTS
+    if party_mode and is_holding_space:
+        for c in confetti_particles:
+            c.update(dt)
+            c.draw(screen)
+        for rose in bouncing_roses:
+            rose.update(dt)
+            rose.draw(screen)
 
     pygame.display.flip()
 
