@@ -29,29 +29,3 @@ jobs:
         with:
           name: valentine_rat-macos-arm
           path: dist/valentine_rat_arm
-
-  build-intel:
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Build macOS Intel binary
-        run: |
-          pyinstaller --noconsole --onefile --hidden-import="PIL" \
-            --add-data "rat.gif:." --add-data "song.mp3:." \
-            --add-data "rose.gif:." --add-data "joke_song.mp3:." \
-            --name="valentine_rat_intel" \
-            valentine_rat.py
-
-      - name: Upload macOS Intel build
-        uses: actions/upload-artifact@v4
-        with:
-          name: valentine_rat-macos-intel
-          path: dist/valentine_rat_intel
