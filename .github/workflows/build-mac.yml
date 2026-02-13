@@ -16,16 +16,25 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Build macOS ARM binary
+      - name: Build macOS ARM app bundle
         run: |
-          pyinstaller --noconsole --onefile --hidden-import="PIL" \
+          pyinstaller --windowed --onedir --hidden-import="PIL" \
             --add-data "rat.gif:." --add-data "song.mp3:." \
             --add-data "rose.gif:." --add-data "joke_song.mp3:." \
-            --name="valentine_rat_arm" \
+            --name="Surprise" \
             valentine_rat.py
+
+      - name: Remove quarantine and sign ad-hoc
+        run: |
+          xattr -cr dist/Surprise.app
+          codesign --force --deep --sign - dist/Surprise.app
+
+      - name: Zip the app bundle
+        run: |
+          cd dist && zip -r Surprise.zip Surprise.app
 
       - name: Upload macOS ARM build
         uses: actions/upload-artifact@v4
         with:
-          name: valentine_rat-macos-arm
-          path: dist/valentine_rat_arm
+          name: Surprise-macos
+          path: dist/Surprise.zip
